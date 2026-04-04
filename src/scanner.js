@@ -3,10 +3,14 @@
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve, basename } from 'path';
 
 export function scan(projectPath) {
   const root = resolve(projectPath);
+
+  if (root.indexOf('\0') !== -1) {
+    throw new Error('Invalid path: null byte detected');
+  }
 
   if (!existsSync(root)) {
     throw new Error(`Project path not found: ${root}`);
@@ -27,15 +31,18 @@ export function scan(projectPath) {
     skills: scanSkills(root),
     gitignore: readOptional(root, '.gitignore'),
     packageJson: readOptionalJson(root, 'package.json'),
-    hasNodeModules: existsSync(join(root, 'node_modules')),
-    hasSrc: existsSync(join(root, 'src')),
-    hasSupabase: existsSync(join(root, 'supabase')),
-    hasDocs: existsSync(join(root, 'docs')),
+    hasNodeModules: existsSync(join(root, 'node_modules')) && resolve(root, 'node_modules').startsWith(resolve(root)),
+    hasSrc: existsSync(join(root, 'src')) && resolve(root, 'src').startsWith(resolve(root)),
+    hasSupabase: existsSync(join(root, 'supabase')) && resolve(root, 'supabase').startsWith(resolve(root)),
+    hasDocs: existsSync(join(root, 'docs')) && resolve(root, 'docs').startsWith(resolve(root)),
   };
 }
 
 function readOptional(root, relativePath) {
-  const fullPath = join(root, relativePath);
+  const fullPath = resolve(root, relativePath);
+  if (!fullPath.startsWith(resolve(root))) {
+    throw new Error('Path traversal attempt detected');
+  }
   if (!existsSync(fullPath)) return null;
   try {
     return {
@@ -70,28 +77,40 @@ function scanSkills(root) {
   ];
 
   for (const dir of skillDirs) {
-    const fullDir = join(root, dir);
+    const fullDir = resolve(root, dir);
+    if (!fullDir.startsWith(resolve(root))) {
+      throw new Error('Invalid directory path');
+    }
     if (!existsSync(fullDir)) continue;
     try {
       const entries = readdirSync(fullDir, { withFileTypes: true });
       const skills = [];
       for (const e of entries) {
         if (e.isFile() && e.name.endsWith('.md')) {
-          const content = readFileSync(join(fullDir, e.name), 'utf-8');
+          const safeName = basename(e.name);
+          const filePath = resolve(fullDir, safeName);
+          if (!filePath.startsWith(resolve(fullDir))) {
+            throw new Error('Invalid file path');
+          }
+          const content = readFileSync(filePath, 'utf-8');
           skills.push({
-            name: e.name.replace('.md', ''),
-            path: join(dir, e.name),
+            name: safeName.replace('.md', ''),
+            path: join(dir, safeName),
             lines: content.split('\n').length,
             bytes: content.length,
           });
         }
         if (e.isDirectory()) {
-          const skillMd = join(fullDir, e.name, 'SKILL.md');
+          const safeDirName = basename(e.name);
+          const skillMd = resolve(fullDir, safeDirName, 'SKILL.md');
+          if (!skillMd.startsWith(resolve(fullDir))) {
+            throw new Error('Invalid file path');
+          }
           if (existsSync(skillMd)) {
             const content = readFileSync(skillMd, 'utf-8');
             skills.push({
-              name: e.name,
-              path: join(dir, e.name, 'SKILL.md'),
+              name: safeDirName,
+              path: join(dir, safeDirName, 'SKILL.md'),
               lines: content.split('\n').length,
               bytes: content.length,
             });

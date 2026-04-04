@@ -8,7 +8,7 @@
  */
 
 import { readdirSync, existsSync, statSync, readFileSync } from 'fs';
-import { join, basename, extname, relative } from 'path';
+import { join, basename, extname, relative, resolve } from 'path';
 
 // ─── Filesystem Scanner for Architecture Map ───────────────────
 
@@ -74,7 +74,10 @@ export function buildArchitectureMap(root) {
 }
 
 function scanDir(root, relDir, extensions) {
-  const fullDir = join(root, relDir);
+  const fullDir = resolve(root, relDir);
+  if (!fullDir.startsWith(resolve(root))) {
+    throw new Error('Invalid directory path: traversal detected');
+  }
   if (!existsSync(fullDir)) return [];
 
   const results = [];
@@ -83,9 +86,10 @@ function scanDir(root, relDir, extensions) {
     for (const e of entries) {
       if (e.isFile() && extensions.some(ext => e.name.endsWith(ext))) {
         if (e.name.startsWith('.') || e.name === 'index.ts' || e.name === 'index.tsx') continue;
+        const safeName = basename(e.name);
         results.push({
-          name: e.name.replace(/\.(tsx?|jsx?|json)$/, ''),
-          path: join(relDir, e.name),
+          name: safeName.replace(/\.(tsx?|jsx?|json)$/, ''),
+          path: join(relDir, safeName),
         });
       }
     }
@@ -94,7 +98,10 @@ function scanDir(root, relDir, extensions) {
 }
 
 function scanComponentsGrouped(root, relDir) {
-  const fullDir = join(root, relDir);
+  const fullDir = resolve(root, relDir);
+  if (!fullDir.startsWith(resolve(root))) {
+    throw new Error('Invalid directory path: traversal detected');
+  }
   if (!existsSync(fullDir)) return [];
 
   const results = [];
@@ -102,23 +109,29 @@ function scanComponentsGrouped(root, relDir) {
     const entries = readdirSync(fullDir, { withFileTypes: true });
     for (const e of entries) {
       if (e.isDirectory()) {
-        const subFiles = scanDir(root, join(relDir, e.name), ['.tsx', '.ts', '.jsx']);
+        const safeDirName = basename(e.name);
+        const targetPath = join(relDir, safeDirName);
+        if (!resolve(root, targetPath).startsWith(resolve(root))) {
+          throw new Error('Invalid path traversal attempt');
+        }
+        const subFiles = scanDir(root, targetPath, ['.tsx', '.ts', '.jsx']);
         if (subFiles.length > 0) {
           // Group: "ai/ (3 files)" with top file names
           const topFiles = subFiles.slice(0, 3).map(f => f.name);
           const suffix = subFiles.length > 3 ? `, +${subFiles.length - 3} more` : '';
           results.push({
-            name: `${e.name}/`,
-            path: join(relDir, e.name, '/'),
+            name: `${safeDirName}/`,
+            path: join(relDir, safeDirName, '/'),
             description: topFiles.join(', ') + suffix,
             count: subFiles.length,
           });
         }
       } else if (e.isFile() && ['.tsx', '.ts', '.jsx'].some(ext => e.name.endsWith(ext))) {
         if (!e.name.startsWith('.')) {
+          const safeFileName = basename(e.name);
           results.push({
-            name: e.name.replace(/\.(tsx?|jsx?)$/, ''),
-            path: join(relDir, e.name),
+            name: safeFileName.replace(/\.(tsx?|jsx?)$/, ''),
+            path: join(relDir, safeFileName),
           });
         }
       }
@@ -128,7 +141,10 @@ function scanComponentsGrouped(root, relDir) {
 }
 
 function scanEdgeFunctions(root, relDir) {
-  const fullDir = join(root, relDir);
+  const fullDir = resolve(root, relDir);
+  if (!fullDir.startsWith(resolve(root))) {
+    throw new Error('Invalid directory path: traversal detected');
+  }
   if (!existsSync(fullDir)) return [];
 
   const results = [];
@@ -136,11 +152,15 @@ function scanEdgeFunctions(root, relDir) {
     const entries = readdirSync(fullDir, { withFileTypes: true });
     for (const e of entries) {
       if (e.isDirectory() && !e.name.startsWith('_') && !e.name.startsWith('.')) {
-        const indexFile = join(fullDir, e.name, 'index.ts');
+        const safeDirName = basename(e.name);
+        const indexFile = resolve(fullDir, safeDirName, 'index.ts');
+        if (!indexFile.startsWith(resolve(fullDir))) {
+          throw new Error('Invalid file path');
+        }
         if (existsSync(indexFile)) {
           results.push({
-            name: e.name,
-            path: join(relDir, e.name, 'index.ts'),
+            name: safeDirName,
+            path: join(relDir, safeDirName, 'index.ts'),
           });
         }
       }

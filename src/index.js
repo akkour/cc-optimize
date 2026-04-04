@@ -229,6 +229,9 @@ export async function run(projectPath) {
         throw new Error('Invalid file path: traversal attempt detected');
       }
       const targetDir = resolve(targetPath, '..');
+      if (!targetDir.startsWith(resolve(root) + sep) && targetDir !== resolve(root)) {
+        throw new Error('Invalid directory path: traversal attempt detected');
+      }
       mkdirSync(targetDir, { recursive: true });
       writeFileSync(targetPath, file.optimized, 'utf-8');
       applied.push(file.path);

@@ -70,7 +70,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
       r.impact?.startsWith('HIGH') ? '#f97316' :
       r.impact?.startsWith('MEDIUM') ? '#eab308' : '#60a5fa';
     return `<div style="padding:12px;margin-bottom:8px;background:#0f172a;border-radius:8px;border-left:3px solid ${escapeHtml(impactColor)};">
-      <div style="color:#e2e8f0;font-size:13px;font-weight:600;">${i + 1}. ${escapeHtml(r.action)}</div>
+      <div style="color:#e2e8f0;font-size:13px;font-weight:600;">${escapeHtml(String(i + 1))}. ${escapeHtml(r.action)}</div>
       <div style="color:#94a3b8;font-size:12px;margin-top:4px;">Impact: ${escapeHtml(r.impact || '')}</div>
       ${r.tokens ? `<div style="color:#94a3b8;font-size:12px;">Tokens: ${escapeHtml(String(r.tokens))}</div>` : ''}
     </div>`;
@@ -79,10 +79,12 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
   const sectionsHtml = sections.map(s => {
     const pct = Math.max(0, Math.min(100, s.max > 0 ? Math.round((s.score / s.max) * 100) : 0));
     const barColor = pct >= 70 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
+    const sanitizedPct = Number.isFinite(pct) ? pct : 0;
+    const sanitizedColor = /^#[0-9a-fA-F]{3,6}$/.test(barColor) ? barColor : '#3b82f6';
     return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
       <span style="color:#94a3b8;font-size:13px;width:120px;">${escapeHtml(s.name)}</span>
       <div style="flex:1;background:#1e293b;border-radius:4px;height:20px;overflow:hidden;">
-        <div style="width:${escapeHtml(String(pct))}%;height:100%;background:${escapeHtml(barColor)};border-radius:4px;transition:width 1s ease;"></div>
+        <div style="width:${sanitizedPct}%;height:100%;background:${sanitizedColor};border-radius:4px;transition:width 1s ease;"></div>
       </div>
       <span style="color:#e2e8f0;font-size:12px;width:50px;text-align:right;">${escapeHtml(String(s.score))}/${escapeHtml(String(s.max))}</span>
     </div>`;
@@ -90,7 +92,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 
   const mapHtml = mapEntries.map(cat => {
     const itemsHtml = cat.items.map(item => {
-      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">(${escapeHtml(item.description)})</span>` : '';
+      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">${escapeHtml('(' + item.description + ')')}</span>` : '';
       return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">
         <span style="color:#64748b;">→</span>
         <code style="color:#38bdf8;font-size:11px;">${escapeHtml(item.path)}</code>${desc}

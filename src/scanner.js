@@ -39,17 +39,20 @@ export function scan(projectPath) {
 }
 
 function readOptional(root, relativePath) {
+  const resolvedRoot = resolve(root);
   const fullPath = resolve(root, relativePath);
-  if (!fullPath.startsWith(resolve(root) + sep) && fullPath !== resolve(root)) {
+  if (!fullPath.startsWith(resolvedRoot + sep) && fullPath !== resolvedRoot) {
     throw new Error('Path traversal attempt detected');
   }
   if (!existsSync(fullPath)) return null;
   try {
+    const content = readFileSync(fullPath, 'utf-8');
+    const size = statSync(fullPath).size;
     return {
       path: relativePath,
-      content: readFileSync(fullPath, 'utf-8'),
-      lines: readFileSync(fullPath, 'utf-8').split('\n').length,
-      bytes: statSync(fullPath).size,
+      content,
+      lines: content.split('\n').length,
+      bytes: size,
     };
   } catch { return null; }
 }
@@ -71,6 +74,7 @@ function findFile(root, candidates) {
 }
 
 function scanSkills(root) {
+  const resolvedRoot = resolve(root);
   const skillDirs = [
     '.claude/skills',
     '.claude/skills/',
@@ -78,40 +82,41 @@ function scanSkills(root) {
 
   for (const dir of skillDirs) {
     const fullDir = resolve(root, dir);
-    if (!fullDir.startsWith(resolve(root) + sep) && fullDir !== resolve(root)) {
+    if (!fullDir.startsWith(resolvedRoot + sep) && fullDir !== resolvedRoot) {
       throw new Error('Invalid directory path');
     }
     if (!existsSync(fullDir)) continue;
+    const resolvedFullDir = resolve(fullDir);
     try {
       const entries = readdirSync(fullDir, { withFileTypes: true });
+      const safeEntries = entries.filter(entry => {
+        const safe = basename(entry.name);
+        return safe === entry.name && resolve(fullDir, safe).startsWith(resolvedFullDir + sep);
+      });
       const skills = [];
-      for (const e of entries) {
+      for (const e of safeEntries) {
         const safeName = basename(e.name);
-        if (safeName !== e.name) continue; // skip entries with path separators
         if (e.isFile() && safeName.endsWith('.md')) {
           const filePath = resolve(fullDir, safeName);
-          if (!filePath.startsWith(resolve(fullDir) + sep)) {
-            throw new Error('Invalid file path');
-          }
           const content = readFileSync(filePath, 'utf-8');
           skills.push({
             name: safeName.replace('.md', ''),
-            path: join(dir, safeName),
+            path: join(dir, basename(safeName)),
             lines: content.split('\n').length,
             bytes: content.length,
           });
         }
-        if (e.isDirectory() && safeName === e.name) {
-          const safeDirName = safeName;
-          const skillMd = resolve(fullDir, safeDirName, 'SKILL.md');
-          if (!skillMd.startsWith(resolve(fullDir) + sep)) {
-            throw new Error('Invalid file path');
-          }
+        if (e.isDirectory()) {
+          const safeDirName = basename(safeName);
+          const targetDir = resolve(fullDir, safeDirName);
+          if (!targetDir.startsWith(resolvedFullDir + sep)) continue;
+          const skillMd = resolve(targetDir, 'SKILL.md');
+          if (!skillMd.startsWith(resolvedFullDir + sep)) continue;
           if (existsSync(skillMd)) {
             const content = readFileSync(skillMd, 'utf-8');
             skills.push({
               name: safeDirName,
-              path: join(dir, safeDirName, 'SKILL.md'),
+              path: join(dir, basename(safeDirName), 'SKILL.md'),
               lines: content.split('\n').length,
               bytes: content.length,
             });

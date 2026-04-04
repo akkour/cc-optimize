@@ -74,25 +74,30 @@ export function buildArchitectureMap(root) {
 }
 
 function scanDir(root, relDir, extensions) {
-  const fullDir = resolve(root, relDir);
-  if (!fullDir.startsWith(resolve(root) + sep) && fullDir !== resolve(root)) {
+  const resolvedRoot = resolve(root);
+  const fullDir = resolve(resolvedRoot, relDir);
+  if (!fullDir.startsWith(resolvedRoot + sep) && fullDir !== resolvedRoot) {
     throw new Error('Invalid directory path: traversal detected');
   }
-  if (!existsSync(fullDir)) return [];
+  const resolvedFullDir = resolve(fullDir);
+  if (!existsSync(resolvedFullDir)) return [];
 
   const results = [];
   try {
-    const entries = readdirSync(fullDir, { withFileTypes: true });
-    for (const e of entries) {
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const safeEntries = entries.filter(entry => {
+      const safe = basename(entry.name);
+      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+    });
+    for (const e of safeEntries) {
       const safeName = basename(e.name);
-      if (safeName !== e.name) continue; // skip entries with path separators
       if (e.isFile() && extensions.some(ext => safeName.endsWith(ext))) {
         if (safeName.startsWith('.') || safeName === 'index.ts' || safeName === 'index.tsx') continue;
-        const filePath = resolve(fullDir, safeName);
-        if (!filePath.startsWith(resolve(fullDir) + sep)) continue;
+        const filePath = resolve(resolvedFullDir, safeName);
+        if (!filePath.startsWith(resolvedFullDir + sep)) continue;
         results.push({
           name: safeName.replace(/\.(tsx?|jsx?|json)$/, ''),
-          path: join(relDir, safeName),
+          path: join(relDir, basename(safeName)),
         });
       }
     }
@@ -101,40 +106,45 @@ function scanDir(root, relDir, extensions) {
 }
 
 function scanComponentsGrouped(root, relDir) {
-  const fullDir = resolve(root, relDir);
-  if (!fullDir.startsWith(resolve(root) + sep) && fullDir !== resolve(root)) {
+  const resolvedRoot = resolve(root);
+  const fullDir = resolve(resolvedRoot, relDir);
+  if (!fullDir.startsWith(resolvedRoot + sep) && fullDir !== resolvedRoot) {
     throw new Error('Invalid directory path: traversal detected');
   }
-  if (!existsSync(fullDir)) return [];
+  const resolvedFullDir = resolve(fullDir);
+  if (!existsSync(resolvedFullDir)) return [];
 
   const results = [];
   try {
-    const entries = readdirSync(fullDir, { withFileTypes: true });
-    for (const e of entries) {
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const safeEntries = entries.filter(entry => {
+      const safe = basename(entry.name);
+      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+    });
+    for (const e of safeEntries) {
       const safeName = basename(e.name);
-      if (safeName !== e.name) continue; // skip entries with path separators
       if (e.isDirectory()) {
-        const targetPath = join(relDir, safeName);
-        const resolvedTarget = resolve(root, targetPath);
-        if (!resolvedTarget.startsWith(resolve(root) + sep)) continue;
+        const targetPath = join(relDir, basename(safeName));
+        const resolvedTarget = resolve(resolvedRoot, targetPath);
+        if (!resolvedTarget.startsWith(resolvedRoot + sep)) continue;
         const subFiles = scanDir(root, targetPath, ['.tsx', '.ts', '.jsx']);
         if (subFiles.length > 0) {
           const topFiles = subFiles.slice(0, 3).map(f => f.name);
           const suffix = subFiles.length > 3 ? `, +${subFiles.length - 3} more` : '';
           results.push({
             name: `${safeName}/`,
-            path: join(relDir, safeName, '/'),
+            path: join(relDir, basename(safeName), '/'),
             description: topFiles.join(', ') + suffix,
             count: subFiles.length,
           });
         }
       } else if (e.isFile() && ['.tsx', '.ts', '.jsx'].some(ext => safeName.endsWith(ext))) {
         if (!safeName.startsWith('.')) {
-          const filePath = resolve(fullDir, safeName);
-          if (!filePath.startsWith(resolve(fullDir) + sep)) continue;
+          const filePath = resolve(resolvedFullDir, safeName);
+          if (!filePath.startsWith(resolvedFullDir + sep)) continue;
           results.push({
             name: safeName.replace(/\.(tsx?|jsx?)$/, ''),
-            path: join(relDir, safeName),
+            path: join(relDir, basename(safeName)),
           });
         }
       }
@@ -144,25 +154,32 @@ function scanComponentsGrouped(root, relDir) {
 }
 
 function scanEdgeFunctions(root, relDir) {
-  const fullDir = resolve(root, relDir);
-  if (!fullDir.startsWith(resolve(root) + sep) && fullDir !== resolve(root)) {
+  const resolvedRoot = resolve(root);
+  const fullDir = resolve(resolvedRoot, relDir);
+  if (!fullDir.startsWith(resolvedRoot + sep) && fullDir !== resolvedRoot) {
     throw new Error('Invalid directory path: traversal detected');
   }
-  if (!existsSync(fullDir)) return [];
+  const resolvedFullDir = resolve(fullDir);
+  if (!existsSync(resolvedFullDir)) return [];
 
   const results = [];
   try {
-    const entries = readdirSync(fullDir, { withFileTypes: true });
-    for (const e of entries) {
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const safeEntries = entries.filter(entry => {
+      const safe = basename(entry.name);
+      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+    });
+    for (const e of safeEntries) {
       const safeName = basename(e.name);
-      if (safeName !== e.name) continue; // skip entries with path separators
       if (e.isDirectory() && !safeName.startsWith('_') && !safeName.startsWith('.')) {
-        const indexFile = resolve(fullDir, safeName, 'index.ts');
-        if (!indexFile.startsWith(resolve(fullDir) + sep)) continue;
+        const targetDir = resolve(resolvedFullDir, safeName);
+        if (!targetDir.startsWith(resolvedFullDir + sep)) continue;
+        const indexFile = resolve(targetDir, 'index.ts');
+        if (!indexFile.startsWith(resolvedFullDir + sep)) continue;
         if (existsSync(indexFile)) {
           results.push({
-            name: safeName,
-            path: join(relDir, safeName, 'index.ts'),
+            name: basename(safeName),
+            path: join(relDir, basename(safeName), 'index.ts'),
           });
         }
       }

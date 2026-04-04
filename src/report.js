@@ -58,10 +58,11 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
   const issuesHtml = analysis.issues.map(i => {
     const color = i.severity === 'critical' ? '#ef4444' : i.severity === 'warning' ? '#eab308' : '#60a5fa';
     const icon = i.severity === 'critical' ? '✗' : i.severity === 'warning' ? '⚠' : 'ℹ';
-    const details = i.details ? i.details.map(d => `<div style="color:#94a3b8;font-size:12px;margin-left:24px;">→ ${escapeHtml(d)}</div>`).join('') : '';
+    const detailItems = Array.isArray(i.details) ? i.details : [];
+    const detailsHtml = detailItems.map(d => `<div style="color:#94a3b8;font-size:12px;margin-left:24px;">${escapeHtml('→ ' + String(d))}</div>`).join('');
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #1e293b;">
       <span style="color:${escapeHtml(color)};font-weight:bold;font-size:16px;line-height:1;">${escapeHtml(icon)}</span>
-      <div><div style="color:#e2e8f0;font-size:13px;">${escapeHtml(i.message)}</div>${details}</div>
+      <div><div style="color:#e2e8f0;font-size:13px;">${escapeHtml(i.message)}</div>${detailsHtml}</div>
     </div>`;
   }).join('');
 
@@ -92,7 +93,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 
   const mapHtml = mapEntries.map(cat => {
     const itemsHtml = cat.items.map(item => {
-      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">${escapeHtml('(' + item.description + ')')}</span>` : '';
+      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">(${escapeHtml(String(item.description))})</span>` : '';
       return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">
         <span style="color:#64748b;">→</span>
         <code style="color:#38bdf8;font-size:11px;">${escapeHtml(item.path)}</code>${desc}
@@ -250,8 +251,9 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 </body>
 </html>`;
 
-  const reportPath = resolve(root, '.claude', 'cc-optimize-report.html');
-  if (!reportPath.startsWith(resolve(root) + sep)) {
+  const resolvedRoot = resolve(root);
+  const reportPath = resolve(resolvedRoot, '.claude', 'cc-optimize-report.html');
+  if (!reportPath.startsWith(resolvedRoot + sep)) {
     throw new Error('Invalid path: access denied');
   }
   writeFileSync(reportPath, html, 'utf-8');

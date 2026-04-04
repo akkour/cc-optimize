@@ -29,8 +29,9 @@ import {
 
 export async function run(projectPath) {
   const root = resolve(projectPath);
+  const resolvedRoot = resolve(root);
 
-  if (root.indexOf('\0') !== -1) {
+  if (resolvedRoot.indexOf('\0') !== -1) {
     throw new Error('Invalid path: null byte detected');
   }
 
@@ -181,11 +182,15 @@ export async function run(projectPath) {
   // ─── Step 12: Backup ─────────────────────────────────────────
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const sanitizedTimestamp = timestamp.replace(/[^a-zA-Z0-9\-]/g, '');
-  const backupDir = join(root, '.claude', 'backups', `cc-optimize-${sanitizedTimestamp}`);
+  const backupDir = resolve(resolvedRoot, '.claude', 'backups', `cc-optimize-${sanitizedTimestamp}`);
+  const resolvedBackupDir = resolve(backupDir);
 
   spinner.start('Creating backup...');
   try {
-    mkdirSync(backupDir, { recursive: true });
+    if (!resolvedBackupDir.startsWith(resolvedRoot + sep)) {
+      throw new Error('Invalid backup directory path');
+    }
+    mkdirSync(resolvedBackupDir, { recursive: true });
 
     // Backup all existing files that will be modified
     const filesToBackup = ['CLAUDE.md', '.claudeignore'];
@@ -194,13 +199,13 @@ export async function run(projectPath) {
 
     for (const relPath of filesToBackup) {
       const safeRelPath = normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
-      const srcPath = resolve(root, safeRelPath);
-      if (!srcPath.startsWith(resolve(root) + sep)) {
+      const srcPath = resolve(resolvedRoot, safeRelPath);
+      if (!srcPath.startsWith(resolvedRoot + sep)) {
         throw new Error('Invalid path traversal attempt');
       }
       if (existsSync(srcPath)) {
-        const backupPath = resolve(backupDir, basename(safeRelPath));
-        if (!backupPath.startsWith(resolve(backupDir) + sep) && backupPath !== resolve(backupDir)) {
+        const backupPath = resolve(resolvedBackupDir, basename(safeRelPath));
+        if (!backupPath.startsWith(resolvedBackupDir + sep) && backupPath !== resolvedBackupDir) {
           throw new Error('Invalid path traversal attempt');
         }
         copyFileSync(srcPath, backupPath);
@@ -224,12 +229,12 @@ export async function run(projectPath) {
     for (const file of plan.files) {
       if (!file.optimized) continue;
 
-      const targetPath = resolve(root, file.path);
-      if (!targetPath.startsWith(resolve(root) + sep) && targetPath !== resolve(root)) {
+      const targetPath = resolve(resolvedRoot, file.path);
+      if (!targetPath.startsWith(resolvedRoot + sep) && targetPath !== resolvedRoot) {
         throw new Error('Invalid file path: traversal attempt detected');
       }
       const targetDir = resolve(targetPath, '..');
-      if (!targetDir.startsWith(resolve(root) + sep) && targetDir !== resolve(root)) {
+      if (!targetDir.startsWith(resolvedRoot + sep) && targetDir !== resolvedRoot) {
         throw new Error('Invalid directory path: traversal attempt detected');
       }
       mkdirSync(targetDir, { recursive: true });

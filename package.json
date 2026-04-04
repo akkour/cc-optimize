@@ -1,0 +1,21 @@
+{
+  "name": "cc-optimize",
+  "version": "1.2.1",
+  "description": "Audit and optimize your Claude Code configuration. Reduce token usage by 40-70%.",
+  "type": "module",
+  "bin": {
+    "cc-optimize": "./bin/cli.js"
+  },
+  "main": "src/index.js",
+  "files": ["bin/", "src/", "README.md", "LICENSE"],
+  "keywords": ["claude-code", "token-optimization", "anthropic", "ai-coding", "developer-tools"],
+  "author": "Eva Technology Services LLC",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/akkour/cc-optimize" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "boxen": "^7.1.1"
+  }
+}

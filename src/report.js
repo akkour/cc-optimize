@@ -5,7 +5,7 @@
  */
 
 import { writeFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve, sep } from 'path';
 
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
 function escapeHtml(str) {
@@ -77,12 +77,12 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
   }).join('');
 
   const sectionsHtml = sections.map(s => {
-    const pct = s.max > 0 ? Math.max(0, Math.round((s.score / s.max) * 100)) : 0;
+    const pct = Math.max(0, Math.min(100, s.max > 0 ? Math.round((s.score / s.max) * 100) : 0));
     const barColor = pct >= 70 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
     return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
       <span style="color:#94a3b8;font-size:13px;width:120px;">${escapeHtml(s.name)}</span>
       <div style="flex:1;background:#1e293b;border-radius:4px;height:20px;overflow:hidden;">
-        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width 1s ease;"></div>
+        <div style="width:${escapeHtml(String(pct))}%;height:100%;background:${escapeHtml(barColor)};border-radius:4px;transition:width 1s ease;"></div>
       </div>
       <span style="color:#e2e8f0;font-size:12px;width:50px;text-align:right;">${escapeHtml(String(s.score))}/${escapeHtml(String(s.max))}</span>
     </div>`;
@@ -249,7 +249,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 </html>`;
 
   const reportPath = resolve(root, '.claude', 'cc-optimize-report.html');
-  if (!reportPath.startsWith(resolve(root))) {
+  if (!reportPath.startsWith(resolve(root) + sep)) {
     throw new Error('Invalid path: access denied');
   }
   writeFileSync(reportPath, html, 'utf-8');

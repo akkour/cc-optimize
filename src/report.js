@@ -252,6 +252,9 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 </html>`;
 
   const resolvedRoot = resolve(root);
+  if (resolvedRoot.indexOf('\0') !== -1) {
+    throw new Error('Invalid path: null byte detected');
+  }
   const reportPath = resolve(resolvedRoot, '.claude', 'cc-optimize-report.html');
   if (!reportPath.startsWith(resolvedRoot + sep)) {
     throw new Error('Invalid path: access denied');

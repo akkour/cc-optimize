@@ -84,10 +84,12 @@ function scanDir(root, relDir, extensions) {
 
   const results = [];
   try {
-    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() || entry.isDirectory());
     const safeEntries = entries.filter(entry => {
       const safe = basename(entry.name);
-      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+      const resolvedEntry = resolve(resolvedFullDir, safe);
+      return safe === entry.name && resolvedEntry.startsWith(resolvedFullDir + sep);
     });
     for (const e of safeEntries) {
       const safeName = basename(e.name);
@@ -116,10 +118,12 @@ function scanComponentsGrouped(root, relDir) {
 
   const results = [];
   try {
-    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() || entry.isDirectory());
     const safeEntries = entries.filter(entry => {
       const safe = basename(entry.name);
-      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+      const resolvedEntry = resolve(resolvedFullDir, safe);
+      return safe === entry.name && resolvedEntry.startsWith(resolvedFullDir + sep);
     });
     for (const e of safeEntries) {
       const safeName = basename(e.name);
@@ -164,10 +168,12 @@ function scanEdgeFunctions(root, relDir) {
 
   const results = [];
   try {
-    const entries = readdirSync(resolvedFullDir, { withFileTypes: true });
+    const entries = readdirSync(resolvedFullDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() || entry.isDirectory());
     const safeEntries = entries.filter(entry => {
       const safe = basename(entry.name);
-      return safe === entry.name && resolve(resolvedFullDir, safe).startsWith(resolvedFullDir + sep);
+      const resolvedEntry = resolve(resolvedFullDir, safe);
+      return safe === entry.name && resolvedEntry.startsWith(resolvedFullDir + sep);
     });
     for (const e of safeEntries) {
       const safeName = basename(e.name);

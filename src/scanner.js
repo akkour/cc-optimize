@@ -19,7 +19,8 @@ export function scan(projectPath) {
 
   const safeSub = (sub) => {
     const p = resolve(resolvedRoot, sub);
-    return p.startsWith(resolvedRoot + sep) && existsSync(p);
+    if (!p.startsWith(resolvedRoot + sep)) return false;
+    return existsSync(p);
   };
 
   return {
@@ -95,10 +96,13 @@ function scanSkills(root) {
     const resolvedFullDir = resolve(fullDir);
     try {
       const entries = readdirSync(fullDir, { withFileTypes: true });
-      const safeEntries = entries.filter(entry => {
-        const safe = basename(entry.name);
-        return safe === entry.name && resolve(fullDir, safe).startsWith(resolvedFullDir + sep);
-      });
+      const safeEntries = entries
+        .filter(entry => entry.isFile() || entry.isDirectory())
+        .filter(entry => {
+          const safe = basename(entry.name);
+          const resolvedEntry = resolve(resolvedFullDir, safe);
+          return safe === entry.name && resolvedEntry.startsWith(resolvedFullDir + sep);
+        });
       const skills = [];
       for (const e of safeEntries) {
         const safeName = basename(e.name);

@@ -22,11 +22,9 @@ const GRADE_COLOR = {
 // ─── Header ────────────────────────────────────────────────────
 
 export function displayHeader() {
-  // scanivy-ignore: CWE-532 — False positive validated by AI
   console.log('');
-  // scanivy-ignore: CWE-532 — False positive validated by AI
   console.log(boxen(
-    chalk.bold.cyan('  cc-optimize  ') + chalk.dim('v1.0.0\n') +
+    chalk.bold.cyan('  cc-optimize  ') + chalk.dim('v2.0.0\n') +
     chalk.white('  Claude Code Configuration Optimizer\n') +
     chalk.dim('  Reduce token usage by 40-70%'),
     {
@@ -35,7 +33,6 @@ export function displayHeader() {
       borderStyle: 'round',
     }
   ));
-  // scanivy-ignore: CWE-532 — False positive validated by AI
   console.log('');
 }
 
@@ -46,7 +43,6 @@ export function displayScore(analysis) {
   const colorFn = GRADE_COLOR[grade] || chalk.white;
   const bar = generateBar(score);
 
-  // scanivy-ignore: CWE-532 — False positive validated by AI
   console.log(boxen(
     colorFn(`  ${grade}  `) + chalk.bold.white(` ${score}/100 `) + chalk.dim('optimization score\n\n') +
     `  ${bar}`,
@@ -58,7 +54,6 @@ export function displayScore(analysis) {
       titleAlignment: 'center',
     }
   ));
-  // scanivy-ignore: CWE-532 — False positive validated by AI
   console.log('');
 }
 

@@ -3,63 +3,46 @@
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { join, resolve, basename, sep } from 'path';
+import { join, resolve } from 'path';
 
 export function scan(projectPath) {
   const root = resolve(projectPath);
-  const resolvedRoot = resolve(root);
 
-  if (resolvedRoot.indexOf('\0') !== -1) {
-    throw new Error('Invalid path: null byte detected');
+  if (!existsSync(root)) {
+    throw new Error(`Project path not found: ${root}`);
   }
-
-  if (!existsSync(resolvedRoot)) {
-    throw new Error(`Project path not found: ${resolvedRoot}`);
-  }
-
-  const safeSub = (sub) => {
-    const p = resolve(resolvedRoot, sub);
-    if (!p.startsWith(resolvedRoot + sep)) return false;
-    return existsSync(p);
-  };
 
   return {
-    root: resolvedRoot,
-    claudeMd: readOptional(resolvedRoot, 'CLAUDE.md'),
-    settingsLocal: readOptional(resolvedRoot, '.claude/settings.local.json'),
-    settingsProject: readOptional(resolvedRoot, '.claude/settings.json'),
-    claudeignore: readOptional(resolvedRoot, '.claudeignore'),
-    designSystem: readOptional(resolvedRoot, 'DESIGN_SYSTEM.md'),
-    dbSchema: findFile(resolvedRoot, [
+    root,
+    claudeMd: readOptional(root, 'CLAUDE.md'),
+    settingsLocal: readOptional(root, '.claude/settings.local.json'),
+    settingsProject: readOptional(root, '.claude/settings.json'),
+    claudeignore: readOptional(root, '.claudeignore'),
+    designSystem: readOptional(root, 'DESIGN_SYSTEM.md'),
+    dbSchema: findFile(root, [
       'supabase/DB_SCHEMA.md',
       'docs/DATABASE_SCHEMA_REFERENCE.md',
       'docs/DB_SCHEMA.md',
     ]),
-    skills: scanSkills(resolvedRoot),
-    gitignore: readOptional(resolvedRoot, '.gitignore'),
-    packageJson: readOptionalJson(resolvedRoot, 'package.json'),
-    hasNodeModules: safeSub('node_modules'),
-    hasSrc: safeSub('src'),
-    hasSupabase: safeSub('supabase'),
-    hasDocs: safeSub('docs'),
+    skills: scanSkills(root),
+    gitignore: readOptional(root, '.gitignore'),
+    packageJson: readOptionalJson(root, 'package.json'),
+    hasNodeModules: existsSync(join(root, 'node_modules')),
+    hasSrc: existsSync(join(root, 'src')),
+    hasSupabase: existsSync(join(root, 'supabase')),
+    hasDocs: existsSync(join(root, 'docs')),
   };
 }
 
 function readOptional(root, relativePath) {
-  const resolvedRoot = resolve(root);
-  const resolvedPath = resolve(resolvedRoot, relativePath);
-  if (!resolvedPath.startsWith(resolvedRoot + sep) && resolvedPath !== resolvedRoot) {
-    throw new Error('Path traversal attempt detected');
-  }
-  if (!existsSync(resolvedPath)) return null;
+  const fullPath = join(root, relativePath);
+  if (!existsSync(fullPath)) return null;
   try {
-    const content = readFileSync(resolvedPath, 'utf-8');
-    const size = statSync(resolvedPath).size;
     return {
       path: relativePath,
-      content,
-      lines: content.split('\n').length,
-      bytes: size,
+      content: readFileSync(fullPath, 'utf-8'),
+      lines: readFileSync(fullPath, 'utf-8').split('\n').length,
+      bytes: statSync(fullPath).size,
     };
   } catch { return null; }
 }
@@ -81,53 +64,34 @@ function findFile(root, candidates) {
 }
 
 function scanSkills(root) {
-  const resolvedRoot = resolve(root);
   const skillDirs = [
     '.claude/skills',
     '.claude/skills/',
   ];
 
   for (const dir of skillDirs) {
-    const fullDir = resolve(root, dir);
-    if (!fullDir.startsWith(resolvedRoot + sep) && fullDir !== resolvedRoot) {
-      throw new Error('Invalid directory path');
-    }
+    const fullDir = join(root, dir);
     if (!existsSync(fullDir)) continue;
-    const resolvedFullDir = resolve(fullDir);
     try {
       const entries = readdirSync(fullDir, { withFileTypes: true });
-      const safeEntries = entries
-        .filter(entry => entry.isFile() || entry.isDirectory())
-        .filter(entry => {
-          const safe = basename(entry.name);
-          const resolvedEntry = resolve(resolvedFullDir, safe);
-          return safe === entry.name && resolvedEntry.startsWith(resolvedFullDir + sep);
-        });
       const skills = [];
-      for (const e of safeEntries) {
-        const safeName = basename(e.name);
-        if (e.isFile() && safeName.endsWith('.md')) {
-          const filePath = resolve(resolvedFullDir, safeName);
-          if (!filePath.startsWith(resolvedFullDir + sep)) continue;
-          const content = readFileSync(filePath, 'utf-8');
+      for (const e of entries) {
+        if (e.isFile() && e.name.endsWith('.md')) {
+          const content = readFileSync(join(fullDir, e.name), 'utf-8');
           skills.push({
-            name: safeName.replace('.md', ''),
-            path: join(dir, basename(safeName)),
+            name: e.name.replace('.md', ''),
+            path: join(dir, e.name),
             lines: content.split('\n').length,
             bytes: content.length,
           });
         }
         if (e.isDirectory()) {
-          const safeDirName = basename(safeName);
-          const targetDir = resolve(resolvedFullDir, safeDirName);
-          if (!targetDir.startsWith(resolvedFullDir + sep)) continue;
-          const skillMd = resolve(targetDir, 'SKILL.md');
-          if (!skillMd.startsWith(resolvedFullDir + sep)) continue;
+          const skillMd = join(fullDir, e.name, 'SKILL.md');
           if (existsSync(skillMd)) {
             const content = readFileSync(skillMd, 'utf-8');
             skills.push({
-              name: basename(safeDirName),
-              path: join(dir, basename(safeDirName), 'SKILL.md'),
+              name: e.name,
+              path: join(dir, e.name, 'SKILL.md'),
               lines: content.split('\n').length,
               bytes: content.length,
             });

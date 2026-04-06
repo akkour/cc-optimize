@@ -5,11 +5,14 @@
  */
 
 import { writeFileSync } from 'fs';
-import { join, resolve, sep } from 'path';
+import { join } from 'path';
 
-const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
 function escapeHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, c => HTML_ESCAPE_MAP[c]);
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult, plan) {
@@ -58,11 +61,10 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
   const issuesHtml = analysis.issues.map(i => {
     const color = i.severity === 'critical' ? '#ef4444' : i.severity === 'warning' ? '#eab308' : '#60a5fa';
     const icon = i.severity === 'critical' ? '✗' : i.severity === 'warning' ? '⚠' : 'ℹ';
-    const detailItems = Array.isArray(i.details) ? i.details : [];
-    const detailsHtml = detailItems.map(d => `<div style="color:#94a3b8;font-size:12px;margin-left:24px;">${escapeHtml('→ ' + String(d))}</div>`).join('');
+    const details = i.details ? i.details.map(d => `<div style="color:#94a3b8;font-size:12px;margin-left:24px;">→ ${escapeHtml(d)}</div>`).join('') : '';
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #1e293b;">
-      <span style="color:${escapeHtml(color)};font-weight:bold;font-size:16px;line-height:1;">${escapeHtml(icon)}</span>
-      <div><div style="color:#e2e8f0;font-size:13px;">${escapeHtml(i.message)}</div>${detailsHtml}</div>
+      <span style="color:${color};font-weight:bold;font-size:16px;line-height:1;">${icon}</span>
+      <div><div style="color:#e2e8f0;font-size:13px;">${escapeHtml(i.message)}</div>${details}</div>
     </div>`;
   }).join('');
 
@@ -70,39 +72,36 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
     const impactColor = r.impact?.startsWith('CRITICAL') || r.impact?.startsWith('SECURITY') ? '#ef4444' :
       r.impact?.startsWith('HIGH') ? '#f97316' :
       r.impact?.startsWith('MEDIUM') ? '#eab308' : '#60a5fa';
-    return `<div style="padding:12px;margin-bottom:8px;background:#0f172a;border-radius:8px;border-left:3px solid ${escapeHtml(impactColor)};">
-      <div style="color:#e2e8f0;font-size:13px;font-weight:600;">${escapeHtml(String(i + 1))}. ${escapeHtml(r.action)}</div>
+    return `<div style="padding:12px;margin-bottom:8px;background:#0f172a;border-radius:8px;border-left:3px solid ${impactColor};">
+      <div style="color:#e2e8f0;font-size:13px;font-weight:600;">${i + 1}. ${escapeHtml(r.action)}</div>
       <div style="color:#94a3b8;font-size:12px;margin-top:4px;">Impact: ${escapeHtml(r.impact || '')}</div>
-      ${r.tokens ? `<div style="color:#94a3b8;font-size:12px;">Tokens: ${escapeHtml(String(r.tokens))}</div>` : ''}
+      ${r.tokens ? `<div style="color:#94a3b8;font-size:12px;">Tokens: ${escapeHtml(r.tokens)}</div>` : ''}
     </div>`;
   }).join('');
 
   const sectionsHtml = sections.map(s => {
-    const pct = Math.max(0, Math.min(100, s.max > 0 ? Math.round((s.score / s.max) * 100) : 0));
+    const pct = s.max > 0 ? Math.max(0, Math.round((s.score / s.max) * 100)) : 0;
     const barColor = pct >= 70 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
-    const sanitizedPct = Number.isFinite(pct) ? pct : 0;
-    const sanitizedColor = /^#[0-9a-fA-F]{3,6}$/.test(barColor) ? barColor : '#3b82f6';
     return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;">
       <span style="color:#94a3b8;font-size:13px;width:120px;">${escapeHtml(s.name)}</span>
       <div style="flex:1;background:#1e293b;border-radius:4px;height:20px;overflow:hidden;">
-        <div style="width:${sanitizedPct}%;height:100%;background:${sanitizedColor};border-radius:4px;transition:width 1s ease;"></div>
+        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width 1s ease;"></div>
       </div>
-      <span style="color:#e2e8f0;font-size:12px;width:50px;text-align:right;">${escapeHtml(String(s.score))}/${escapeHtml(String(s.max))}</span>
+      <span style="color:#e2e8f0;font-size:12px;width:50px;text-align:right;">${s.score}/${s.max}</span>
     </div>`;
   }).join('');
 
   const mapHtml = mapEntries.map(cat => {
     const itemsHtml = cat.items.map(item => {
-      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">(${escapeHtml(String(item.description))})</span>` : '';
+      const desc = item.description ? ` <span style="color:#64748b;font-size:11px;">(${escapeHtml(item.description)})</span>` : '';
       return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">
         <span style="color:#64748b;">→</span>
         <code style="color:#38bdf8;font-size:11px;">${escapeHtml(item.path)}</code>${desc}
       </div>`;
     }).join('');
-    const moreCount = cat.total - 8;
-    const moreHtml = cat.total > 8 ? `<div style="color:#64748b;font-size:11px;padding:2px 0;">... +${escapeHtml(String(moreCount))} more</div>` : '';
+    const moreHtml = cat.total > 8 ? `<div style="color:#64748b;font-size:11px;padding:2px 0;">... +${cat.total - 8} more</div>` : '';
     return `<div style="margin-bottom:16px;">
-      <div style="color:#e2e8f0;font-size:13px;font-weight:600;margin-bottom:4px;">${escapeHtml(cat.icon)} ${escapeHtml(cat.label)} <span style="color:#64748b;font-weight:normal;">(${escapeHtml(String(cat.total))})</span></div>
+      <div style="color:#e2e8f0;font-size:13px;font-weight:600;margin-bottom:4px;">${cat.icon} ${escapeHtml(cat.label)} <span style="color:#64748b;font-weight:normal;">(${cat.total})</span></div>
       ${itemsHtml}${moreHtml}
     </div>`;
   }).join('');
@@ -116,7 +115,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
   const planHtml = plan.files.map(f => {
     const actionColor = f.action === 'CREATE' ? '#22c55e' : f.action === 'OPTIMIZE' ? '#eab308' : '#38bdf8';
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b;">
-      <span style="color:${escapeHtml(actionColor)};font-size:11px;font-weight:bold;padding:2px 6px;border:1px solid ${escapeHtml(actionColor)};border-radius:4px;">${escapeHtml(f.action)}</span>
+      <span style="color:${actionColor};font-size:11px;font-weight:bold;padding:2px 6px;border:1px solid ${actionColor};border-radius:4px;">${f.action}</span>
       <code style="color:#e2e8f0;font-size:12px;">${escapeHtml(f.path)}</code>
     </div>`;
   }).join('');
@@ -251,14 +250,7 @@ export function generateHtmlReport(root, data, analysis, archMap, claudeMdResult
 </body>
 </html>`;
 
-  const resolvedRoot = resolve(root);
-  if (resolvedRoot.indexOf('\0') !== -1) {
-    throw new Error('Invalid path: null byte detected');
-  }
-  const reportPath = resolve(resolvedRoot, '.claude', 'cc-optimize-report.html');
-  if (!reportPath.startsWith(resolvedRoot + sep)) {
-    throw new Error('Invalid path: access denied');
-  }
+  const reportPath = join(root, '.claude', 'cc-optimize-report.html');
   writeFileSync(reportPath, html, 'utf-8');
   return reportPath;
 }

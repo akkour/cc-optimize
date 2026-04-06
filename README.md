@@ -18,6 +18,24 @@ Or specify a project path:
 npx cc-optimize /path/to/your/project
 ```
 
+## Setup for Claude Code users
+
+After cloning, create your local settings (not committed to git):
+```bash
+mkdir -p .claude
+cat > .claude/settings.local.json << 'EOF'
+{
+  "model": "sonnet",
+  "env": {
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  }
+}
+EOF
+```
+
+This file is in `.gitignore` — each developer creates their own.
+
 ## What It Does
 
 ```
